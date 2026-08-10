@@ -1,58 +1,88 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Client Project Tracker
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A simple project tracker for a digital agency — project managers can track client projects, monitor progress, and manage priorities. Built with Laravel, Inertia.js, and React.
 
-## About Laravel
+## Technology Choices
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+| Layer | Choice | Why |
+|---|---|---|
+| Backend | Laravel 13 (PHP 8.3) | Expressive ORM (Eloquent), built-in validation, and a REST-friendly routing layer with minimal boilerplate. |
+| Frontend | React 19 via [Inertia.js](https://inertiajs.com) | Gives an SPA-like experience (no full page reloads, client-side form handling) without building and maintaining a separate API-consuming client just for page routing. |
+| Styling | Tailwind CSS v4 | Utility-first styling, fast to iterate on a small UI like this. |
+| Database | SQLite | Zero-config, file-based — appropriate for the scope of this project; no separate DB server to install. |
+| Testing | PHPUnit (Feature tests) | Ships with Laravel; used to test validation, search, filtering, and sorting against the live API. |
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+**Two ways into the same data**: the app exposes a genuine JSON REST API under `/api/projects` (`GET/POST/PUT/DELETE`) as specified in the requirements, *and* a separate set of web routes that power the Inertia/React UI. Both share the same `Project` model, Form Requests, and query scopes (search/filter/sort), so validation and business logic live in one place — the API isn't just a byproduct of the UI, and the UI isn't a thin wrapper over the API either; each uses the response shape (JSON vs. Inertia page/redirect) that's idiomatic for its purpose.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Setup Instructions
 
-## Learning Laravel
+**Prerequisites:**
+- PHP 8.3+
+- Composer
+- Node.js 20.19+ or 22.12+ (Vite 8's bundler requires this; older versions can hit a native-binding install bug)
+- npm
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+**Steps:**
 
 ```bash
-composer require laravel/boost --dev
+# 1. Install PHP dependencies
+composer install
 
-php artisan boost:install
+# 2. Copy the environment file and generate an app key
+cp .env.example .env
+php artisan key:generate
+
+# 3. Install JS dependencies
+npm install
+
+# 4. Create the SQLite database file and run migrations + seed sample data
+php artisan migrate --seed
+
+# 5. Build frontend assets
+npm run build
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+The seeder loads its sample projects from `test_data.json` in the project root.
 
-## Contributing
+## How to Run the Application
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+**Development** (with hot-reload):
 
-## Code of Conduct
+Run these in two separate terminals:
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+php artisan serve      # Laravel app at http://127.0.0.1:8000
+npm run dev             # Vite dev server (asset hot-reload)
+```
 
-## Security Vulnerabilities
+> **Note (Windows):** this repo's `composer run dev` script bundles `php artisan serve`, a queue listener, `php artisan pail` (log viewer), and `npm run dev` together via `concurrently`. `pail` requires the `pcntl` PHP extension, which isn't available on Windows PHP builds, so that combined script will fail on Windows — run `php artisan serve` and `npm run dev` separately instead, as shown above. On macOS/Linux, `composer run dev` works as-is.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Then open **http://127.0.0.1:8000**.
 
-## License
+**Production-style run** (no hot-reload):
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```bash
+npm run build
+php artisan serve
+```
+
+**Running tests:**
+
+```bash
+php artisan test
+```
+
+## Features
+
+- Full CRUD for projects (client name, project name, description, status, priority, start/due dates) via both the web UI and the REST API.
+- Validation: required client/project name, valid status/priority enums, due date can't precede start date — with meaningful error messages surfaced inline in the form.
+- Bonus: search (client/project name), filter by status, filter by priority, and click-to-sort table columns — all backed by shared, reusable query scopes and covered by feature tests.
+
+## Assumptions Made
+
+- **No authentication.** The requirements list auth as optional bonus; this is treated as a single-user internal tool with no login.
+- **`PUT` means full replace, not partial update.** Matches the literal `PUT /projects/:id` requirement — the edit form always sends the complete set of fields, not a partial patch.
+- **Status and priority are fixed, not user-configurable.** They're implemented as backed PHP enums (`ProjectStatus`, `ProjectPriority`) matching the exact values from the requirements, rather than an editable lookup table — no requirement suggested these lists need to change at runtime.
+- **`test_data.json` is the canonical seed data**, used as-is instead of randomly generated fixtures, so the app has consistent, realistic sample data out of the box.
+- **Search matches client name or project name** (case-insensitive substring match); description isn't included, since the requirement only specifies searching/filtering as a bonus without detailing the exact fields.
+- **Sorting is restricted to an allow-list of columns** (client name, project name, status, priority, start date, due date) to prevent arbitrary/unsafe column names from reaching the query builder.
